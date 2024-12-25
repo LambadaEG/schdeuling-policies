@@ -324,11 +324,174 @@ vector<Process> HRRN(vector<Process> processes, int time_interval)
 
 vector<Process> FB1(vector<Process> processes, int time_interval)
 {
+    vector<vector<Process *>> time_slots(time_interval + 1);
+    for (int i = 0; i < processes.size(); i++)
+    {
+        time_slots[processes[i].arrival_time].push_back(&processes[i]);
+    }
+    int current_time = -1;
+    vector<deque<Process *>> ready_queue(time_interval + 1);
+    while (current_time < time_interval)
+    {
+        int first = -1;
+        for (int i = 0; i < ready_queue.size(); i++)
+        {
+            if (!ready_queue[i].empty())
+            {
+                first = i;
+                break;
+            }
+        }
+        if (first != -1)
+        {
+            auto process = ready_queue[first].front();
+            ready_queue[first].pop_front();
+            process->state[current_time] = '*';
+            for (int i = first; i < ready_queue.size(); i++)
+            {
+                if (!ready_queue[i].empty())
+                {
+                    for (int j = 0; j < ready_queue[i].size(); j++)
+                    {
+                        ready_queue[i][j]->state[current_time] = '.';
+                        ready_queue[i][j]->waiting_time++;
+                    }
+                }
+            }
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue[0].push_back(process);
+            }
+            process->remaining_time--;
+            if (process->remaining_time <= 0)
+            {
+                process->end_time = current_time;
+                process->turnaround_time = process->end_time - process->arrival_time;
+            }
+            else
+            {
+                int new_first = -1;
+                for (int i = 0; i < ready_queue.size(); i++)
+                {
+                    if (!ready_queue[i].empty())
+                    {
+                        new_first = i;
+                        break;
+                    }
+                }
+                if (new_first == -1)
+                {
+                    ready_queue[first].push_back(process);
+                }
+                else
+                {
+                    ready_queue[first + 1].push_back(process);
+                }
+            }
+        }
+        else
+        {
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue[0].push_back(process);
+            }
+        }
+    }
     return processes;
 }
 
 vector<Process> FB2i(vector<Process> processes, int time_interval)
 {
+    vector<vector<Process *>> time_slots(time_interval + 1);
+    for (int i = 0; i < processes.size(); i++)
+    {
+        time_slots[processes[i].arrival_time].push_back(&processes[i]);
+    }
+    int current_time = -1;
+    vector<deque<Process *>> ready_queue(time_interval + 1);
+    while (current_time < time_interval)
+    {
+        int first = -1;
+        for (int i = 0; i < ready_queue.size(); i++)
+        {
+            if (!ready_queue[i].empty())
+            {
+                first = i;
+                break;
+            }
+        }
+        if (first != -1)
+        {
+            auto process = ready_queue[first].front();
+            ready_queue[first].pop_front();
+            int time_quantum = 1 << first;
+            while (time_quantum != 0 && process->remaining_time > 0)
+            {
+                time_quantum--;
+                process->state[current_time] = '*';
+                for (int i = first; i < ready_queue.size(); i++)
+                {
+                    if (!ready_queue[i].empty())
+                    {
+                        for (int j = 0; j < ready_queue[i].size(); j++)
+                        {
+                            ready_queue[i][j]->state[current_time] = '.';
+                            ready_queue[i][j]->waiting_time++;
+                        }
+                    }
+                }
+                current_time++;
+                for (auto process : time_slots[current_time])
+                {
+                    ready_queue[0].push_back(process);
+                }
+                process->remaining_time--;
+                if (ready_queue[first].size() > 0 && time_quantum > 1)
+                {
+                    break;
+                }
+            }
+            if (process->remaining_time <= 0)
+            {
+                process->end_time = current_time;
+                process->turnaround_time = process->end_time - process->arrival_time;
+            }
+            else if (time_quantum == 0)
+            {
+                int new_first = -1;
+                for (int i = 0; i < ready_queue.size(); i++)
+                {
+                    if (!ready_queue[i].empty())
+                    {
+                        new_first = i;
+                        break;
+                    }
+                }
+                if (new_first == -1)
+                {
+                    ready_queue[first].push_back(process);
+                }
+                else
+                {
+                    ready_queue[first + 1].push_back(process);
+                }
+            }
+            else
+            {
+                ready_queue[first].push_front(process);
+            }
+        }
+        else
+        {
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue[0].push_back(process);
+            }
+        }
+    }
     return processes;
 }
 
@@ -401,11 +564,11 @@ void readInput()
             finished = HRRN(processes, time_interval_int);
             break;
         case 6:
-            cout << left << setw(6) << "FB-" << 1;
+            cout << left << setw(6) << "FB-" + to_string(1);
             finished = FB1(processes, time_interval_int);
             break;
         case 7:
-            cout << left << setw(6) << "FB-" << 2 << "i";
+            cout << left << setw(6) << "FB-" + to_string(2) + "i";
             finished = FB2i(processes, time_interval_int);
             break;
         case 8:
