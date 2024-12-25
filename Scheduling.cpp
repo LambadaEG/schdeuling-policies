@@ -3,7 +3,7 @@
 void printTable(vector<Process> processes, int time_interval)
 {
 
-    for (int i = 0; i < time_interval; ++i)
+    for (int i = 0; i <= time_interval; ++i)
     {
         cout << i % 10 << " ";
     }
@@ -23,7 +23,7 @@ void printTable(vector<Process> processes, int time_interval)
                 cout << "| ";
             }
         }
-        cout << "|\n";
+        cout << "| \n";
     }
     cout << string(48, '-') << "\n";
 }
@@ -59,7 +59,7 @@ void printState(vector<Process> processes)
     sum = 0;
     for (const auto &process : processes)
     {
-        cout << setw(4) << right << process.turnaround_time * 1.0 / process.service_time << " |";
+        cout << setw(5) << right << process.turnaround_time * 1.0 / process.service_time << "|";
         sum += process.turnaround_time * 1.0 / process.service_time;
     }
     cout << fixed << setprecision(2) << setw(5) << sum / processes.size() << "|";
@@ -133,45 +133,42 @@ vector<Process> RR(vector<Process> processes, int time_quantum, int time_interva
     deque<Process *> ready_queue;
     while (current_time < time_interval)
     {
-
-        if (!ready_queue.empty())
-        {
-            auto process = ready_queue.front();
-            ready_queue.pop_front();
-            int count = 0;
-            while (count < time_quantum && process->remaining_time > 0)
-            {
-                process->state[current_time] = '*';
-                for (auto other_process : ready_queue)
-                {
-                    other_process->state[current_time] = '.';
-                    other_process->waiting_time++;
-                }
-                current_time++;
-                for (auto process : time_slots[current_time])
-                {
-                    ready_queue.push_back(process);
-                }
-                count++;
-                process->remaining_time--;
-            }
-            if (process->remaining_time <= 0)
-            {
-                process->end_time = current_time;
-                process->turnaround_time = process->end_time - process->arrival_time;
-            }
-            else
-            {
-                ready_queue.push_back(process);
-            }
-        }
-        else
+        if (ready_queue.empty())
         {
             current_time++;
             for (auto process : time_slots[current_time])
             {
                 ready_queue.push_back(process);
             }
+            continue;
+        }
+        auto process = ready_queue.front();
+        ready_queue.pop_front();
+        int count = 0;
+        while (count < time_quantum && process->remaining_time > 0)
+        {
+            process->state[current_time] = '*';
+            for (auto other_process : ready_queue)
+            {
+                other_process->state[current_time] = '.';
+                other_process->waiting_time++;
+            }
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue.push_back(process);
+            }
+            count++;
+            process->remaining_time--;
+        }
+        if (process->remaining_time <= 0)
+        {
+            process->end_time = current_time;
+            process->turnaround_time = process->end_time - process->arrival_time;
+        }
+        else
+        {
+            ready_queue.push_back(process);
         }
     }
     return processes;
@@ -190,38 +187,36 @@ vector<Process> SPN(vector<Process> processes, int time_interval)
     {
         sort(ready_queue.begin(), ready_queue.end(), [](const Process *a, const Process *b)
              { return a->remaining_time < b->remaining_time || (a->remaining_time == b->remaining_time && a->arrival_time < b->arrival_time); });
-        if (!ready_queue.empty())
-        {
-            auto process = ready_queue.front();
-            ready_queue.pop_front();
-            int count = 0;
-            while (count < process->service_time)
-            {
-                process->state[current_time] = '*';
-                for (auto other_process : ready_queue)
-                {
-                    other_process->state[current_time] = '.';
-                    other_process->waiting_time++;
-                }
-                current_time++;
-                for (auto process : time_slots[current_time])
-                {
-                    ready_queue.push_back(process);
-                }
-                count++;
-                process->remaining_time--;
-            }
-            process->end_time = current_time;
-            process->turnaround_time = process->end_time - process->arrival_time;
-        }
-        else
+        if (ready_queue.empty())
         {
             current_time++;
             for (auto process : time_slots[current_time])
             {
                 ready_queue.push_back(process);
             }
+            continue;
         }
+        auto process = ready_queue.front();
+        ready_queue.pop_front();
+        int count = 0;
+        while (count < process->service_time)
+        {
+            process->state[current_time] = '*';
+            for (auto other_process : ready_queue)
+            {
+                other_process->state[current_time] = '.';
+                other_process->waiting_time++;
+            }
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue.push_back(process);
+            }
+            count++;
+            process->remaining_time--;
+        }
+        process->end_time = current_time;
+        process->turnaround_time = process->end_time - process->arrival_time;
     }
     return processes;
 }
@@ -237,38 +232,36 @@ vector<Process> SRT(vector<Process> processes, int time_interval)
     deque<Process *> ready_queue;
     while (current_time < time_interval)
     {
-        if (!ready_queue.empty())
-        {
-            auto process = ready_queue.front();
-            process->state[current_time] = '*';
-            for (int i = 1; i < ready_queue.size(); i++)
-            {
-                ready_queue[i]->state[current_time] = '.';
-                ready_queue[i]->waiting_time++;
-            }
-            current_time++;
-            for (auto process : time_slots[current_time])
-            {
-                ready_queue.push_back(process);
-            }
-            process->remaining_time--;
-            if (process->remaining_time <= 0)
-            {
-                process->end_time = current_time;
-                process->turnaround_time = process->end_time - process->arrival_time;
-                ready_queue.pop_front();
-            }
-            sort(ready_queue.begin(), ready_queue.end(), [](const Process *a, const Process *b)
-                 { return a->remaining_time < b->remaining_time || (a->remaining_time == b->remaining_time && a->arrival_time < b->arrival_time); });
-        }
-        else
+        if (ready_queue.empty())
         {
             current_time++;
             for (auto process : time_slots[current_time])
             {
                 ready_queue.push_back(process);
             }
+            continue;
         }
+        auto process = ready_queue.front();
+        process->state[current_time] = '*';
+        for (int i = 1; i < ready_queue.size(); i++)
+        {
+            ready_queue[i]->state[current_time] = '.';
+            ready_queue[i]->waiting_time++;
+        }
+        current_time++;
+        for (auto process : time_slots[current_time])
+        {
+            ready_queue.push_back(process);
+        }
+        process->remaining_time--;
+        if (process->remaining_time <= 0)
+        {
+            process->end_time = current_time;
+            process->turnaround_time = process->end_time - process->arrival_time;
+            ready_queue.pop_front();
+        }
+        sort(ready_queue.begin(), ready_queue.end(), [](const Process *a, const Process *b)
+             { return a->remaining_time < b->remaining_time || (a->remaining_time == b->remaining_time && a->arrival_time < b->arrival_time); });
     }
     return processes;
 }
@@ -286,38 +279,36 @@ vector<Process> HRRN(vector<Process> processes, int time_interval)
     {
         sort(ready_queue.begin(), ready_queue.end(), [](const Process *a, const Process *b)
              { return (a->waiting_time + a->remaining_time) / (double)a->service_time > (b->waiting_time + b->remaining_time) / (double)b->service_time || (a->waiting_time + a->remaining_time) / (double)a->service_time == (b->waiting_time + b->remaining_time) / (double)b->remaining_time || (a->remaining_time == b->remaining_time && a->arrival_time < b->arrival_time); });
-        if (!ready_queue.empty())
-        {
-            auto process = ready_queue.front();
-            ready_queue.pop_front();
-            int count = 0;
-            while (count < process->service_time)
-            {
-                process->state[current_time] = '*';
-                for (auto other_process : ready_queue)
-                {
-                    other_process->state[current_time] = '.';
-                    other_process->waiting_time++;
-                }
-                current_time++;
-                for (auto process : time_slots[current_time])
-                {
-                    ready_queue.push_back(process);
-                }
-                count++;
-                process->remaining_time--;
-            }
-            process->end_time = current_time;
-            process->turnaround_time = process->end_time - process->arrival_time;
-        }
-        else
+        if (ready_queue.empty())
         {
             current_time++;
             for (auto process : time_slots[current_time])
             {
                 ready_queue.push_back(process);
             }
+            continue;
         }
+        auto process = ready_queue.front();
+        ready_queue.pop_front();
+        int count = 0;
+        while (count < process->service_time)
+        {
+            process->state[current_time] = '*';
+            for (auto other_process : ready_queue)
+            {
+                other_process->state[current_time] = '.';
+                other_process->waiting_time++;
+            }
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                ready_queue.push_back(process);
+            }
+            count++;
+            process->remaining_time--;
+        }
+        process->end_time = current_time;
+        process->turnaround_time = process->end_time - process->arrival_time;
     }
     return processes;
 }
@@ -347,7 +338,7 @@ vector<Process> FB1(vector<Process> processes, int time_interval)
             auto process = ready_queue[first].front();
             ready_queue[first].pop_front();
             process->state[current_time] = '*';
-            for (int i = first; i < ready_queue.size(); i++)
+            for (int i = 0; i < ready_queue.size(); i++)
             {
                 if (!ready_queue[i].empty())
                 {
@@ -431,7 +422,7 @@ vector<Process> FB2i(vector<Process> processes, int time_interval)
             {
                 time_quantum--;
                 process->state[current_time] = '*';
-                for (int i = first; i < ready_queue.size(); i++)
+                for (int i = 0; i < ready_queue.size(); i++)
                 {
                     if (!ready_queue[i].empty())
                     {
@@ -544,46 +535,72 @@ void readInput()
         switch (policy_number)
         {
         case 1:
-            cout << left << setw(6) << "FCFS";
+            if (mode == "trace")
+                cout << left << setw(6) << "FCFS";
+            else
+                cout << "FCFS";
             finished = FCFS(processes, time_interval_int);
             break;
         case 2:
-            cout << left << setw(6) << "RR-" + to_string(time_quantum);
+            if (mode == "trace")
+                cout << left << setw(6) << "RR-" + to_string(time_quantum);
+            else
+                cout << "RR-" + to_string(time_quantum);
             finished = RR(processes, time_quantum, time_interval_int);
             break;
         case 3:
-            cout << left << setw(6) << "SPN";
+            if (mode == "trace")
+                cout << left << setw(6) << "SPN";
+            else
+                cout << "SPN";
             finished = SPN(processes, time_interval_int);
             break;
         case 4:
-            cout << left << setw(6) << "SRT";
+            if (mode == "trace")
+                cout << left << setw(6) << "SRT";
+            else
+                cout << "SRT";
             finished = SRT(processes, time_interval_int);
             break;
         case 5:
-            cout << left << setw(6) << "HRRN";
+            if (mode == "trace")
+                cout << left << setw(6) << "HRRN";
+            else
+                cout << "HRRN";
             finished = HRRN(processes, time_interval_int);
             break;
         case 6:
-            cout << left << setw(6) << "FB-" + to_string(1);
+            if (mode == "trace")
+                cout << left << setw(6) << "FB-" + to_string(1);
+            else
+                cout << "FB-" + to_string(1);
             finished = FB1(processes, time_interval_int);
             break;
         case 7:
-            cout << left << setw(6) << "FB-" + to_string(2) + "i";
+            if (mode == "trace")
+                cout << left << setw(6) << "FB-" + to_string(2) + "i";
+            else
+                cout << "FB-" + to_string(2) + "i";
             finished = FB2i(processes, time_interval_int);
             break;
         case 8:
-            cout << "Aging" << endl;
+            if (mode == "trace")
+                cout << left << setw(6) << "Aging";
+            else
+                cout << "Aging";
             finished = Aging(processes, time_interval_int);
             break;
         }
         if (mode == "trace")
         {
             printTable(finished, time_interval_int);
+            cout << "\n";
         }
         else
         {
             cout << "\n";
             printState(finished);
+            cout << "\n";
         }
     }
 }
