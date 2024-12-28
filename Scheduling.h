@@ -13,6 +13,7 @@ typedef struct Process
     char process_id;
     int arrival_time;
     int service_time;
+    int initial_priority;
     int priority;
     int waiting_time;
     int turnaround_time;

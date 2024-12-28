@@ -79,47 +79,44 @@ vector<string> split(string str, char delimiter)
 vector<Process> FCFS(vector<Process> processes, int time_interval)
 {
     int current_time = 0;
-    vector<pair<int, Process>> process_queue;
-    for (auto process : processes)
-    {
-        process_queue.emplace_back(process.arrival_time, process);
-    }
-    sort(process_queue.begin(), process_queue.end(), [](const pair<int, Process> &a, const pair<int, Process> &b)
-         { return a.first < b.first; });
+    sort(processes.begin(), processes.end(), [](const Process &a, const Process &b)
+         { return a.arrival_time < b.arrival_time; });
+    deque<Process *> ready_queue;
     int index = 0;
-    if (process_queue[0].first != 0)
-    {
-        current_time = process_queue[0].first;
-        process_queue[0].second.start_time = current_time;
-    }
     while (current_time < time_interval)
     {
-        process_queue[index].second.start_time = current_time;
-        int count = 0;
-        while (count < process_queue[index].second.service_time)
+        while (index < processes.size() && processes[index].arrival_time <= current_time)
         {
-            process_queue[index].second.state[current_time] = '*';
-            for (int i = index + 1; i < process_queue.size(); i++)
-            {
-                if (process_queue[i].first <= current_time)
-                {
-                    process_queue[i].second.state[current_time] = '.';
-                    process_queue[i].second.waiting_time++;
-                }
-            }
-            current_time++;
-            count++;
+            ready_queue.push_back(&processes[index]);
+            index++;
         }
-        process_queue[index].second.end_time = current_time;
-        index++;
+        if (ready_queue.empty())
+        {
+            current_time++;
+            continue;
+        }
+        auto process = ready_queue.front();
+        ready_queue.pop_front();
+        process->start_time = current_time;
+        for (int i = 0; i < process->service_time; i++)
+        {
+            process->state[current_time] = '*';
+            current_time++;
+            while (index < processes.size() && processes[index].arrival_time <= current_time)
+            {
+                ready_queue.push_back(&processes[index]);
+                index++;
+            }
+            for (auto other_process : ready_queue)
+            {
+                other_process->state[current_time] = '.';
+                other_process->waiting_time++;
+            }
+        }
+        process->end_time = current_time;
+        process->turnaround_time = process->end_time - process->arrival_time;
     }
-    vector<Process> finished;
-    for (auto process : process_queue)
-    {
-        process.second.turnaround_time = process.second.end_time - process.second.arrival_time;
-        finished.push_back(process.second);
-    }
-    return finished;
+    return processes;
 }
 
 vector<Process> RR(vector<Process> processes, int time_quantum, int time_interval)
@@ -439,17 +436,13 @@ vector<Process> FB2i(vector<Process> processes, int time_interval)
                     ready_queue[0].push_back(process);
                 }
                 process->remaining_time--;
-                if (ready_queue[first].size() > 0 && time_quantum > 1)
-                {
-                    break;
-                }
             }
             if (process->remaining_time <= 0)
             {
                 process->end_time = current_time;
                 process->turnaround_time = process->end_time - process->arrival_time;
             }
-            else if (time_quantum == 0)
+            else
             {
                 int new_first = -1;
                 for (int i = 0; i < ready_queue.size(); i++)
@@ -469,10 +462,6 @@ vector<Process> FB2i(vector<Process> processes, int time_interval)
                     ready_queue[first + 1].push_back(process);
                 }
             }
-            else
-            {
-                ready_queue[first].push_front(process);
-            }
         }
         else
         {
@@ -486,8 +475,51 @@ vector<Process> FB2i(vector<Process> processes, int time_interval)
     return processes;
 }
 
-vector<Process> Aging(vector<Process> processes, int time_interval)
+vector<Process> Aging(vector<Process> processes, int time_interval, int quantum)
 {
+    vector<vector<Process *>> time_slots(time_interval + 1);
+    for (int i = 0; i < processes.size(); i++)
+    {
+        time_slots[processes[i].arrival_time].push_back(&processes[i]);
+    }
+    int current_time = -1;
+    deque<Process *> ready_queue;
+    while (current_time < time_interval)
+    {
+        stable_sort(ready_queue.begin(), ready_queue.end(), [](const Process *a, const Process *b)
+                    { return a->priority > b->priority; });
+        if (ready_queue.empty())
+        {
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                process->priority++;
+                ready_queue.push_back(process);
+            }
+            continue;
+        }
+        auto process = ready_queue.front();
+        ready_queue.pop_front();
+        int count = 0;
+        while (count < quantum)
+        {
+            process->state[current_time] = '*';
+            for (auto other_process : ready_queue)
+            {
+                other_process->state[current_time] = '.';
+                other_process->priority++;
+            }
+            current_time++;
+            for (auto process : time_slots[current_time])
+            {
+                process->priority++;
+                ready_queue.push_back(process);
+            }
+            count++;
+        }
+        process->priority = process->initial_priority;
+        ready_queue.push_back(process);
+    }
     return processes;
 }
 
@@ -514,7 +546,8 @@ void readInput()
         process.process_id = tokens[0][0];
         process.arrival_time = stoi(tokens[1]);
         process.service_time = stoi(tokens[2]);
-        process.priority = stoi(tokens[2]);
+        process.initial_priority = stoi(tokens[2]);
+        process.priority = process.initial_priority;
         process.waiting_time = 0;
         process.turnaround_time = 0;
         process.remaining_time = process.service_time;
@@ -588,7 +621,7 @@ void readInput()
                 cout << left << setw(6) << "Aging";
             else
                 cout << "Aging";
-            finished = Aging(processes, time_interval_int);
+            finished = Aging(processes, time_interval_int, time_quantum);
             break;
         }
         if (mode == "trace")

@@ -14,10 +14,10 @@ test: build test_output/
 		./program < "$$file" > test_output/$$basename; \
 	done
 
-	@if diff -r test_output testcases; then \
-		echo "ALL TESTS PASS 🥳"; \
+	@if diff -r testcases test_output -x '*-input.txt'; then \
+		echo "ALL TESTS PASS : GG WP GO NEXT TERM"; \
 	else \
-		echo "Some tests fail :("; \
+		echo "Some 7amoo el dod alaa tests fail enta  ج.ض"; \
 	fi
 
 
